@@ -31,16 +31,18 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
-
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.tooling.preview.Preview
 import com.hfad.geoquiz.ui.theme.GeoQuizTheme
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.window.DialogProperties
+
 
 // Question - модель для хранения вопроса и правильного ответа
 data class Question(
@@ -89,7 +91,8 @@ class QuizViewModel : ViewModel() {
         Question("Lake Baikal is the world's oldest and deepest freshwater lake.", true)
     )
 
-    private var state by mutableStateOf(QuizState())
+    var state by mutableStateOf(QuizState())
+        private set
 
     init {
         state = state.copy(
@@ -97,7 +100,6 @@ class QuizViewModel : ViewModel() {
         )
     }
 
-    fun getState(): QuizState = state
 
     fun onAnswer(answer: Boolean) {
         val currentIndex = state.currentQuestionIndex
@@ -109,6 +111,13 @@ class QuizViewModel : ViewModel() {
             userAnswers = updatedAnswers,
             isAnswered = true
         )
+        // ЕСЛИ ЭТО ПОСЛЕДНИЙ ВОПРОС - сразу показываем результаты
+        if (currentIndex == questions.size - 1) {
+            state = state.copy(
+                showResults = true
+            )
+        }
+
     }
 
     fun onNext() {
@@ -164,13 +173,15 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun GeoQuizTheme(content: @Composable () -> Unit) {
-    MaterialTheme(content = content)
+    MaterialTheme(
+        content = content
+    )
 }
 
 @Composable
 fun GeoQuizApp() {
     val viewModel: QuizViewModel = viewModel()
-    val state = viewModel.getState()
+    val state = viewModel.state
 
     CompositionLocalProvider(
         // передает состояние и функции в дерево компонентов
@@ -203,37 +214,40 @@ fun QuizScreen() {
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // Прогресс
-            Text(
-                text = "Question ${quizState.state.currentQuestionIndex + 1} of ${questions.size}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.Gray
-            )
+        // ОСНОВНОЙ КОНТЕНТ - показываем только если НЕ показываем результаты
+        if (!quizState.state.showResults) {
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Прогресс
+                Text(
+                    text = "Question ${quizState.state.currentQuestionIndex + 1} of ${questions.size}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.Gray
+                )
 
-            Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(32.dp))
 
-            // Вопрос
-            Text(
-                text = currentQuestion.text,
-                style = MaterialTheme.typography.headlineMedium,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
+                // Вопрос
+                Text(
+                    text = currentQuestion.text,
+                    style = MaterialTheme.typography.headlineMedium,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
 
-            Spacer(modifier = Modifier.height(64.dp))
+                Spacer(modifier = Modifier.height(64.dp))
 
-            // Кнопки ответов
-            AnswerButtons()
+                // Кнопки ответов
+                AnswerButtons()
 
-            Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(32.dp))
 
-            // Кнопка Next
-            NextButton()
+                // Кнопка Next
+                NextButton()
+            }
         }
 
         // Всплывающая панель с результатами
@@ -282,7 +296,7 @@ fun AnswerButton(
         onClick = onClick,
         modifier = modifier,
         colors = ButtonDefaults.buttonColors(
-            containerColor = if (text == "True") Color(0xFF4CAF50) else Color(0xFFF44336)
+            containerColor = Color(0xFF8B00FF)
         )
     ) {
         Text(
@@ -302,7 +316,10 @@ fun NextButton() {
         quizState.state.currentQuestionIndex < questions.size - 1) {
         Button(
             onClick = quizState.onNext,
-            modifier = Modifier.fillMaxWidth(0.8f)
+            modifier = Modifier.fillMaxWidth(0.8f),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF8B00FF) // Тот же фиолетовый цвет
+            )
         ) {
             Text(
                 text = "Next Question",
@@ -316,10 +333,63 @@ fun NextButton() {
 //Это НЕ последний вопрос
 //На последнем вопросе кнопка Next не показывается
 
-//@Preview(showBackground = true)
-//@Composable
-//fun GreetingPreview() {
-//    GeoQuizTheme {
-//        Greeting("Android")
-//    }
-//}
+@Composable
+fun ResultsDialog(
+    score: Int,
+    totalQuestions: Int
+) {
+    val quizState = LocalQuizState.current
+    val percentage = if (totalQuestions > 0) (score * 100 / totalQuestions) else 0
+
+    AlertDialog(
+        onDismissRequest = { },
+        title = {
+            Text(
+                text = "Quiz Results",
+                style = MaterialTheme.typography.headlineSmall
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    text = "Your score: $score/$totalQuestions",
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                Text(
+                    text = "Percentage: ${percentage}%",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    text = when {
+                        percentage >= 80 -> "Excellent!"
+                        percentage >= 60 -> "Good job!"
+                        else -> "Keep practicing!"
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = quizState.onRestart,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF8B00FF) // Тот же фиолетовый цвет
+                )
+            ) {
+                Text("Take Quiz Again?")
+            }
+        },
+        properties = DialogProperties(
+            dismissOnBackPress = false,
+            dismissOnClickOutside = false
+        )
+    )
+}
+//Показывает счет и процент правильных ответов
+//Кнопка "Take Quiz Again?" сбрасывает тест через onRestart()
+
+
+
+
