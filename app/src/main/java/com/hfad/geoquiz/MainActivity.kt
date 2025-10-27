@@ -190,6 +190,131 @@ fun GeoQuizApp() {
 //Обертывает приложение в CompositionLocalProvider
 //Делает состояние доступным для всех дочерних компонентов
 }
+//ОСНОВНОЙ ЭКРАН
+@Composable
+fun QuizScreen() {
+    val quizState = LocalQuizState.current
+    val currentQuestion = quizState.getCurrentQuestion()
+    val questions = quizState.getQuestions()
+    val score = quizState.calculateScore()
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Прогресс
+            Text(
+                text = "Question ${quizState.state.currentQuestionIndex + 1} of ${questions.size}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.Gray
+            )
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // Вопрос
+            Text(
+                text = currentQuestion.text,
+                style = MaterialTheme.typography.headlineMedium,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+
+            Spacer(modifier = Modifier.height(64.dp))
+
+            // Кнопки ответов
+            AnswerButtons()
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // Кнопка Next
+            NextButton()
+        }
+
+        // Всплывающая панель с результатами
+        if (quizState.state.showResults) {
+            ResultsDialog(score = score, totalQuestions = questions.size)
+        }
+    }
+}
+@Composable
+fun AnswerButtons() {
+    val quizState = LocalQuizState.current
+
+    // Кнопки становятся невидимыми после ответа
+    if (!quizState.state.isAnswered) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            AnswerButton(
+                text = "True",
+                onClick = { quizState.onAnswer(true) },
+                modifier = Modifier.weight(1f)
+            )
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            AnswerButton(
+                text = "False",
+                onClick = { quizState.onAnswer(false) },
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+    //Показывает кнопки ТОЛЬКО когда isAnswered = false
+    //При нажатии вызывает onAnswer и устанавливает isAnswered = true
+    //Это делает кнопки невидимыми после ответа
+}
+
+@Composable
+fun AnswerButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Button(
+        onClick = onClick,
+        modifier = modifier,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (text == "True") Color(0xFF4CAF50) else Color(0xFFF44336)
+        )
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.titleMedium
+        )
+    }
+}
+
+@Composable
+fun NextButton() {
+    val quizState = LocalQuizState.current
+    val questions = quizState.getQuestions()
+
+    // Кнопка Next видна только после ответа и не на последнем вопросе
+    if (quizState.state.isAnswered &&
+        quizState.state.currentQuestionIndex < questions.size - 1) {
+        Button(
+            onClick = quizState.onNext,
+            modifier = Modifier.fillMaxWidth(0.8f)
+        ) {
+            Text(
+                text = "Next Question",
+                style = MaterialTheme.typography.titleMedium
+            )
+        }
+    }
+}
+//Показывает кнопку ТОЛЬКО когда:
+//Пользователь ответил (isAnswered = true)
+//Это НЕ последний вопрос
+//На последнем вопросе кнопка Next не показывается
 
 //@Preview(showBackground = true)
 //@Composable
