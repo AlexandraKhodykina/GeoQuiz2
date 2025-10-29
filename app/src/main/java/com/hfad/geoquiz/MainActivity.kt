@@ -55,6 +55,7 @@ data class Question(
 //isAnswered - флаг, отвечен ли текущий вопрос
 //showResults - флаг, показывать ли результаты
 
+//При изменении любого поля в QuizState происходит рекомпозиция зависимых компонентов
 data class QuizState(
     val currentQuestionIndex: Int = 0,
     val userAnswers: List<Boolean?> = emptyList(),
@@ -90,7 +91,7 @@ class QuizViewModel : ViewModel() {
         Question("The Amazon River is the longest river in the Americas.", true),
         Question("Lake Baikal is the world's oldest and deepest freshwater lake.", true)
     )
-
+        //mutableStateOf() создает observable состояние, которое отслеживается Compose
     var state by mutableStateOf(QuizState())
         private set
 
@@ -107,7 +108,7 @@ class QuizViewModel : ViewModel() {
             this[currentIndex] = answer
         }
 
-        state = state.copy(
+        state = state.copy( //  ИЗМЕНЕНИЕ STATE - РЕКОМПОЗИЦИЯ
             userAnswers = updatedAnswers,
             isAnswered = true
         )
@@ -124,11 +125,11 @@ class QuizViewModel : ViewModel() {
         val nextIndex = state.currentQuestionIndex + 1
 
         if (nextIndex >= questions.size) {
-            state = state.copy(
+            state = state.copy( //  ИЗМЕНЕНИЕ STATE - РЕКОМПОЗИЦИЯ
                 showResults = true
             )
         } else {
-            state = state.copy(
+            state = state.copy( //  ИЗМЕНЕНИЕ STATE - РЕКОМПОЗИЦИЯ
                 currentQuestionIndex = nextIndex,
                 isAnswered = false
             )
@@ -215,7 +216,7 @@ fun QuizScreen() {
             .padding(16.dp)
     ) {
         // ОСНОВНОЙ КОНТЕНТ - показываем только если НЕ показываем результаты
-        if (!quizState.state.showResults) {
+        if (!quizState.state.showResults) { // РЕКОМПОЗИЦИЯ ПРИ ИЗМЕНЕНИИ showResults
             Column(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.Center,
@@ -243,7 +244,7 @@ fun QuizScreen() {
                 // Кнопки ответов
                 AnswerButtons()
 
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(64.dp))
 
                 // Кнопка Next
                 NextButton()
@@ -251,7 +252,7 @@ fun QuizScreen() {
         }
 
         // Всплывающая панель с результатами
-        if (quizState.state.showResults) {
+        if (quizState.state.showResults) { // РЕКОМПОЗИЦИЯ ПРИ ИЗМЕНЕНИИ showResults
             ResultsDialog(score = score, totalQuestions = questions.size)
         }
     }
@@ -261,7 +262,7 @@ fun AnswerButtons() {
     val quizState = LocalQuizState.current
 
     // Кнопки становятся невидимыми после ответа
-    if (!quizState.state.isAnswered) {
+    if (!quizState.state.isAnswered) { // РЕКОМПОЗИЦИЯ ПРИ ИЗМЕНЕНИИ isAnswered
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly
@@ -312,7 +313,7 @@ fun NextButton() {
     val questions = quizState.getQuestions()
 
     // Кнопка Next видна только после ответа и не на последнем вопросе
-    if (quizState.state.isAnswered &&
+    if (quizState.state.isAnswered &&   // РЕКОМПОЗИЦИЯ ПРИ ИЗМЕНЕНИИ isAnswered ИЛИ currentQuestionInd
         quizState.state.currentQuestionIndex < questions.size - 1) {
         Button(
             onClick = quizState.onNext,
@@ -390,6 +391,12 @@ fun ResultsDialog(
 //Показывает счет и процент правильных ответов
 //Кнопка "Take Quiz Again?" сбрасывает тест через onRestart()
 
+// Поток данных и рекомпозиция
+//Изменение состояния → Рекомпозиция зависимых компонентов → Обновление UI
+//        ↑
+//Пользовательское действие (нажатие кнопки)
 
 
 
+//State определяет, что показывать
+//Рекомпозиция автоматически обновляет UI при изменении state
